@@ -1,0 +1,98 @@
+{
+  "TITLE": "Shimmy Dumb Grid",
+  "CREDIT": "Adapted from suksma/Hexcollie/Julian Carnival MilkDrop preset",
+  "PASSES": [
+    {
+      "TARGET": "gameOfLife",
+      "PERSISTENT": true,
+      "FLOAT": true
+    },
+    {
+      "TARGET": "flowBuffer",
+      "FLOAT": true
+    }
+  ],
+  "CONTROLS": [
+    {
+      "TYPE": "slider smooth",
+      "NAME": "golSpeed",
+      "DEFAULT": 1.0,
+      "MIN": 0.0,
+      "MAX": 2.0,
+      "UI_GROUP": "Game of Life",
+      "PARAMS": 0.05
+    },
+    {
+      "TYPE": "slider smooth",
+      "NAME": "golSpawnRate",
+      "DEFAULT": 0.02,
+      "MIN": 0.0,
+      "MAX": 0.1,
+      "UI_GROUP": "Game of Life",
+      "PARAMS": 0.05
+    },
+    {
+      "TYPE": "slider smooth",
+      "NAME": "moebiusStrength",
+      "DEFAULT": 1.0,
+      "MIN": 0.0,
+      "MAX": 2.0,
+      "UI_GROUP": "Moebius",
+      "PARAMS": 0.03
+    },
+    {
+      "TYPE": "slider smooth",
+      "NAME": "moebiusSpeed",
+      "DEFAULT": 1.0,
+      "MIN": 0.0,
+      "MAX": 3.0,
+      "UI_GROUP": "Moebius",
+      "PARAMS": 0.03
+    },
+    {
+      "TYPE": "slider smooth",
+      "NAME": "circleSize",
+      "DEFAULT": 0.08,
+      "MIN": 0.01,
+      "MAX": 0.2,
+      "UI_GROUP": "Circles",
+      "PARAMS": 0.05
+    },
+    {
+      "TYPE": "slider smooth",
+      "NAME": "circleOrbitRadius",
+      "DEFAULT": 0.3,
+      "MIN": 0.0,
+      "MAX": 0.5,
+      "UI_GROUP": "Circles",
+      "PARAMS": 0.05
+    },
+    {
+      "TYPE": "slider smooth",
+      "NAME": "audioReactivity",
+      "DEFAULT": 1.0,
+      "MIN": 0.0,
+      "MAX": 2.0,
+      "UI_GROUP": "Audio",
+      "PARAMS": 0.03
+    },
+    {
+      "TYPE": "slider smooth",
+      "NAME": "decay",
+      "DEFAULT": 0.95,
+      "MIN": 0.8,
+      "MAX": 0.99,
+      "UI_GROUP": "Feedback",
+      "PARAMS": 0.02
+    },
+    {
+      "TYPE": "slider smooth",
+      "NAME": "flowAmount",
+      "DEFAULT": 0.004,
+      "MIN": 0.0,
+      "MAX": 0.02,
+      "UI_GROUP": "Feedback",
+      "PARAMS": 0.02
+    }
+  ]
+}
