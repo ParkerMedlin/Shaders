@@ -4,188 +4,290 @@ description: Adapts MilkDrop (.milk) presets for use in other shader environment
 user-invocable: true
 ---
 
-# Adapting MilkDrop Presets
+# MilkDrop Preset Adaptation Planning
 
-This skill guides the conversion of MilkDrop presets to other visual platforms. The process involves understanding the source preset, mapping its concepts to the target platform, and implementing equivalent functionality.
+This skill produces a detailed adaptation plan for user review before any conversion work begins. The plan should be thorough enough for a separate session to execute the conversion flawlessly.
 
 ## Workflow
 
-1. **Analyze the MilkDrop preset** - Understand what it does visually and technically
-2. **Identify the target platform** - Determine which environment to convert to
-3. **Map concepts** - Translate MilkDrop architecture to target platform
-4. **Implement** - Write the shader/effect using platform-specific skill
+### Step 1: Analyze the MilkDrop Preset
 
-## Step 1: Analyze the MilkDrop Preset
+When given a .milk preset file, thoroughly analyze it and document:
 
-When given a .milk preset file, identify:
+#### Core Motion System
+- **Zoom**: Base `zoom` value? Audio modulation?
+- **Rotation**: Base `rot` value? Audio modulation?
+- **Warp**: `warp` parameter strength? Custom warp shader?
+- **Translation**: `dx`, `dy` motion?
+- **Per-vertex variations**: Any mesh-based motion effects?
 
-### Core Motion
-- **Zoom/Rotation**: What are the base `zoom`, `rot` values? Any per-vertex variation?
-- **Warp**: How much warping (`warp` parameter)? Custom warp shader effects?
-- **Translation**: Any `dx`, `dy` motion?
+#### Audio Reactivity
+- Which audio inputs? (`bass`, `mid`, `treb`, attenuated versions?)
+- How do they modulate parameters?
+- Direct vs smoothed (`_att`) response?
 
-### Audio Reactivity
-- Which audio inputs are used? (`bass`, `mid`, `treb`, attenuated versions?)
-- How do they modulate the parameters?
-- Direct vs smoothed response?
-
-### Visual Elements
+#### Visual Elements
 - Waveform drawing? Which mode?
-- Custom shapes? (count, instancing, textured?)
+- Custom shapes? (count, type, textures)
 - Custom waves?
 - Borders?
 
-### Shader Effects (if MilkDrop 2+)
-- Warp shader: What modifications beyond basic motion?
-- Composite shader: Post-processing effects? Blur usage?
+#### Shader Effects (MilkDrop 2+)
+- Warp shader modifications?
+- Composite shader post-processing?
 - Custom textures?
+- Blur usage (`sampler_blur1`, `sampler_blur2`, `sampler_blur3`)?
 
-### Key Techniques
-- Feedback loops
+#### Key Techniques
+- Feedback/decay patterns
 - Color manipulation
 - Geometric patterns
 - Noise usage
 
-## Step 2: Platform Selection
+### Step 2: Identify Target Platform
 
-Ask the user which platform they want to target, then delegate to the appropriate skill:
+Ask the user which platform they want to target:
 
-| Target Platform | Skill to Use | Key Considerations |
-|-----------------|--------------|-------------------|
-| **Resolume Wire** | `write-resolume-shader` | Single-pass ISF, no persistent buffers, feedback via node routing |
-| **Synesthesia** | `write-synesthesia-shader` | Built-in audio FFT via textures, `iTime`/`iResolution` uniforms, `iPreviousFrame` for feedback |
-| **MadMapper** | `write-madmapper-shader` | ISF format with multipass and persistent buffer support |
-| **TouchDesigner** | (manual guidance) | GLSL TOPs, different architecture |
-| **Generic GLSL** | (manual guidance) | Shadertoy-style or standalone |
+| Target | Best For | Key Capabilities |
+|--------|----------|------------------|
+| **Resolume Wire** | VJ performance | Single-pass ISF, external audio/feedback routing |
+| **Synesthesia** | Music visualization | Built-in audio, simple feedback, BPM detection |
+| **MadMapper** | Projection mapping | Multipass, persistent buffers, audio FFT |
+| **TouchDesigner** | Complex installations | Full GLSL, network integration |
 
-## Step 3: Concept Mapping
+### Step 3: Create Adaptation Plan
 
-### MilkDrop → ISF/Wire Mapping
+After analysis and target selection, create a comprehensive plan document. Save it to `/project-specs/milkdrop-[preset-name]-to-[platform]-plan.md`.
 
-| MilkDrop Concept | ISF Equivalent |
-|------------------|----------------|
-| `time` | `TIME` |
-| `bass`, `mid`, `treb` | Audio input (requires external FFT or analysis node) |
-| `uv` / `uv_orig` | `isf_FragNormCoord` |
-| `texsize` | `RENDERSIZE` |
-| Per-frame equations | Compute in `main()` before UV manipulation |
-| Per-vertex equations | Compute per-pixel (less efficient but necessary) |
-| `sampler_main` + feedback | `feedbackImage` input routed from output |
-| `decay` | `mix(color, vec4(0.0), decayAmount)` or multiply |
-| Q variables | Local variables or uniforms |
-| Custom shapes | Must be drawn procedurally in shader |
-| Waveforms | Requires audio texture input or separate node |
-| Blur textures | Separate blur nodes or manual blur in shader |
+**CRITICAL: Stop here and present the plan to the user for review. Do NOT proceed to implementation.**
 
-### Key Architecture Differences
+## Plan Document Template
 
-**MilkDrop has:**
-- Implicit feedback loop (previous frame always available)
-- Separate mesh-based motion system
-- Built-in audio analysis
-- Per-vertex interpolation for motion
+```markdown
+# MilkDrop Adaptation Plan: [Preset Name] → [Target Platform]
 
-**ISF/Wire has:**
-- Explicit feedback via node routing
-- All computation per-pixel
-- Audio must come from external sources
-- No built-in mesh system
+## Source Preset Analysis
 
-### Adaptation Strategies
+### Preset Overview
+[One paragraph describing what this preset looks like visually]
 
-**For feedback effects:**
-```glsl
-// ISF: Add feedbackImage input, mix with new content
-vec4 feedback = IMG_THIS_PIXEL(feedbackImage);
-vec4 fresh = /* new content */;
-gl_FragColor = mix(fresh, feedback * decay, feedbackAmount);
+### Visual Signature
+- Primary movement: [describe the dominant motion]
+- Color behavior: [how colors change]
+- Audio response: [how it reacts to music]
+- Distinctive features: [what makes this preset recognizable]
+
+### MilkDrop Components Used
+
+#### Per-Frame Variables
+| Variable | Value/Expression | Purpose |
+|----------|------------------|---------|
+| `zoom` | [value] | [effect] |
+| `rot` | [value] | [effect] |
+| `warp` | [value] | [effect] |
+| `dx`, `dy` | [value] | [effect] |
+| `decay` | [value] | [effect] |
+| [Q vars] | [value] | [effect] |
+
+#### Per-Vertex Effects
+[Describe any per-vertex motion - this is tricky to convert]
+
+#### Warp Shader
+- [ ] Uses default warp only
+- [ ] Custom warp shader (describe below)
+
+[If custom, describe what it does]
+
+#### Composite Shader
+- [ ] No composite shader
+- [ ] Custom composite shader (describe below)
+
+[If custom, describe post-processing effects]
+
+#### Audio Mapping
+| MilkDrop Input | Value Typical | What It Affects |
+|----------------|---------------|-----------------|
+| `bass` | [range] | [effect] |
+| `bass_att` | [range] | [effect] |
+| `mid` | [range] | [effect] |
+| `treb` | [range] | [effect] |
+| [other] | [range] | [effect] |
+
+#### Visual Elements
+- Waveform: [mode and settings, or "none"]
+- Shapes: [description, or "none"]
+- Borders: [settings, or "none"]
+
+## Target Platform: [Platform Name]
+
+### Platform Capabilities
+[Brief summary of what this platform can/cannot do]
+
+### Conversion Feasibility
+
+| MilkDrop Feature | Can Convert? | Strategy |
+|------------------|--------------|----------|
+| Per-frame zoom/rot | Yes | [approach] |
+| Per-vertex motion | Partial | [approach or limitation] |
+| Warp shader | [Yes/No/Partial] | [approach] |
+| Composite shader | [Yes/No/Partial] | [approach] |
+| Feedback/decay | [Yes/Workaround] | [approach] |
+| Audio reactivity | [Yes/Different] | [approach] |
+| Blur textures | [Yes/No/Workaround] | [approach] |
+
+### What Will Be Lost or Changed
+[Honestly describe any features that cannot be replicated]
+
+### What Will Be Gained
+[Platform-specific features that enhance the adaptation]
+
+## Conversion Strategy
+
+### Motion System Translation
+
+#### Zoom
+```
+MilkDrop: zoom = [expression]
+Target:   [equivalent approach]
 ```
 
-**For motion/warping:**
-```glsl
-// Convert per-vertex motion to per-pixel UV distortion
-vec2 uv = isf_FragNormCoord;
-vec2 center = vec2(0.5);
-vec2 delta = uv - center;
-
-// Zoom
-float zoom = 1.02; // MilkDrop zoom value
-uv = center + delta / zoom;
-
-// Rotation
-float rot = 0.01; // MilkDrop rot value
-float c = cos(rot), s = sin(rot);
-delta = uv - center;
-uv = center + vec2(delta.x*c - delta.y*s, delta.x*s + delta.y*c);
+#### Rotation
+```
+MilkDrop: rot = [expression]
+Target:   [equivalent approach]
 ```
 
-**For warp:**
-```glsl
-// Warp is typically sine-based distortion
-float warpAmount = 1.0;
-vec2 warpUV = uv;
-warpUV.x += sin(uv.y * 10.0 + TIME) * 0.01 * warpAmount;
-warpUV.y += cos(uv.x * 10.0 + TIME) * 0.01 * warpAmount;
+#### Warp
+```
+MilkDrop: warp = [expression]
+Target:   [equivalent approach]
 ```
 
-**For audio reactivity (when available):**
-```glsl
-// Map MilkDrop audio variables to your audio input
-// bass_att, mid_att, treb_att in MilkDrop are smoothed values
-float bass = /* from audio texture or uniform */;
-float zoom = 1.0 + (bass - 1.0) * 0.1; // React to bass
+### Feedback/Decay Translation
+```
+MilkDrop: decay = [value], feedback via sampler_main
+Target:   [approach - persistent buffer, external routing, syn_FinalPass, etc.]
 ```
 
-## Step 4: Delegate to Platform Skill
+### Audio Translation
 
-Once analysis is complete and target is identified:
+| MilkDrop | Target Platform Equivalent |
+|----------|---------------------------|
+| `bass` | [equivalent] |
+| `bass_att` | [equivalent] |
+| `mid` | [equivalent] |
+| `treb` | [equivalent] |
 
-### For Resolume Wire
-Reference the `write-resolume-shader` skill at `.claude/skills/write-resolume-shader/`. The skill provides:
-- ISF JSON structure
-- Input type definitions
-- Wire-specific limitations (no multipass, no persistent buffers)
-- Feedback workaround via node routing
+### Color/Post-Processing Translation
+[How composite shader effects will be converted]
 
-### For Synesthesia
-Reference the `write-synesthesia-shader` skill at `.claude/skills/write-synesthesia-shader/`. The skill provides:
-- Standard GLSL structure with Synesthesia uniforms
-- Audio FFT/waveform texture sampling
-- `iPreviousFrame` for feedback effects
-- User parameter definitions
+## Implementation Outline
 
-### For MadMapper
-Reference the `write-madmapper-shader` skill at `.claude/skills/write-madmapper-shader/`. The skill provides:
-- ISF JSON structure (similar to Wire but more capable)
-- Multipass rendering support
-- Persistent buffers for true feedback loops
-- Audio FFT input type
+### Controls to Expose
+| Control | Type | Purpose | Maps to |
+|---------|------|---------|---------|
+| [name] | [type] | [what it does] | [MilkDrop equivalent] |
 
-## Example Conversion Prompt
-
-When adapting a preset, structure your response like this:
-
+### Shader Structure
 ```
-## MilkDrop Preset Analysis
-
-**Visual Effect**: [Describe what it looks like]
-
-**Core Techniques**:
-- [List main techniques used]
-
-**Audio Mapping**:
-- [How audio affects visuals]
-
-**Conversion Notes for [Target Platform]**:
-- [Platform-specific considerations]
-- [What can/cannot be directly translated]
-- [Workarounds needed]
-
-## Implementation
-
-[Then invoke the appropriate platform skill or provide the implementation]
+[Pseudocode outline of how the shader will be structured]
+1. [Setup/coordinates]
+2. [Audio sampling]
+3. [Motion/UV transformation]
+4. [Feedback handling]
+5. [Color/post-processing]
+6. [Output]
 ```
+
+### Platform-Specific Configuration
+[JSON/scene.json/uniforms configuration needed]
+
+## Fidelity Assessment
+
+### Visual Accuracy: [High/Medium/Low]
+[Explain how close the result will be to the original]
+
+### Audio Accuracy: [High/Medium/Low]
+[Explain how similarly it will respond to music]
+
+### Key Compromises
+1. [Compromise 1 and why it's necessary]
+2. [Compromise 2 and why it's necessary]
+
+## Implementation Checklist
+
+### Before Coding
+- [ ] User approves this plan
+- [ ] Understand all MilkDrop expressions used
+- [ ] Confirm platform constraints are acceptable
+- [ ] Agree on acceptable fidelity level
+
+### During Implementation
+- [ ] Translate motion system
+- [ ] Set up feedback mechanism
+- [ ] Map audio inputs
+- [ ] Recreate color processing
+- [ ] Add user controls
+- [ ] Test audio reactivity
+
+### Validation
+- [ ] Compare side-by-side with original (if possible)
+- [ ] Test with various music
+- [ ] Verify all controls work
+- [ ] Check performance
 
 ## Reference
 
-For detailed MilkDrop variable and function reference, see [reference/milkdrop-reference.md](reference/milkdrop-reference.md).
+### MilkDrop Variable Reference
+[Link to reference/milkdrop-reference.md]
+
+### Target Platform Reference
+[Link to relevant platform skill]
+
+---
+
+**Ready for review.** Once approved, implementation can begin in a new session using this plan and the target platform's skill reference.
+```
+
+## Reference Material
+
+- [MilkDrop Variable & Function Reference](reference/milkdrop-reference.md)
+
+For target platforms:
+- Resolume Wire: See `write-resolume-shader` skill
+- Synesthesia: See `write-synesthesia-shader` skill
+- MadMapper: See `write-madmapper-shader` skill
+- TouchDesigner: See `write-touchdesigner-shader` skill
+
+## Key Architecture Differences
+
+### MilkDrop Has:
+- Implicit feedback loop (previous frame always available)
+- Separate mesh-based motion system (per-vertex interpolation)
+- Built-in audio analysis (bass/mid/treb already processed)
+- Blur textures pre-computed at multiple scales
+
+### Target Platforms Typically Have:
+- Explicit feedback mechanisms (varies by platform)
+- All computation per-pixel (no mesh)
+- Audio from textures or external sources
+- Manual blur implementation (or none)
+
+## Common Conversion Challenges
+
+| Challenge | Typical Solution |
+|-----------|------------------|
+| Per-vertex motion | Approximate with per-pixel math or simplify |
+| Blur textures | Multipass blur (MadMapper) or skip (Wire) |
+| Complex per-frame equations | Pre-compute constants, convert math |
+| Q variables communication | Local variables or extra uniforms |
+| Waveform drawing | Separate layer or omit |
+| Custom shapes | Procedural SDF or omit |
+
+## After User Approval
+
+Once the user approves the plan:
+1. The plan document serves as the complete specification
+2. A new session uses the plan + target platform skill to implement
+3. The fidelity assessment sets realistic expectations
+4. The implementation checklist ensures completeness

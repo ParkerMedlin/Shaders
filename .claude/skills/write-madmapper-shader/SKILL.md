@@ -3,365 +3,260 @@ name: write-madmapper-shader
 description: Writes ISF shaders for MadMapper. Use when creating visual effects, generators, or filters for MadMapper projection mapping software.
 ---
 
-# Writing ISF Shaders for MadMapper
+# MadMapper ISF Shader Planning
 
-MadMapper uses ISF (Interactive Shader Format) for custom shaders. ISF is a JSON+GLSL format that defines inputs, outputs, and shader code in a single file.
+This skill produces a detailed implementation plan for user review before any code is written. The plan should be thorough enough for a separate session to execute flawlessly.
 
-## ISF File Structure
+## Platform Capabilities
 
-```glsl
-/*{
-    "DESCRIPTION": "What this shader does",
-    "CREDIT": "Author Name",
+MadMapper ISF supports advanced features not available in Resolume Wire:
+
+- **Multipass rendering** via `PASSES` array
+- **Persistent buffers** (`PERSISTENT: true`) for feedback effects
+- **`PASSINDEX` variable** for pass-specific logic
+- **Audio FFT input** (`audioFFT` type)
+
+## Workflow
+
+### Step 1: Gather Requirements
+
+Ask clarifying questions to understand:
+
+1. **Effect Type**: Generator, Filter, Audio-reactive, or Transition?
+2. **Visual Goal**: What should it look like? Reference images/videos?
+3. **Inputs**: Image inputs? Audio FFT? How many?
+4. **Controls**: What parameters should be adjustable?
+5. **Feedback**: Does it need persistent buffers for trails/accumulation?
+6. **Multipass**: Blur? Post-processing? Multi-stage effects?
+7. **Audio Reactivity**: How should it respond to audio analysis?
+8. **Projection Context**: How will this be used in projection mapping?
+
+### Step 2: Create Implementation Plan
+
+After gathering requirements, create a comprehensive plan document. Save it to `/project-specs/isf-mm-[effect-name]-plan.md`.
+
+**CRITICAL: Stop here and present the plan to the user for review. Do NOT proceed to implementation.**
+
+## Plan Document Template
+
+```markdown
+# MadMapper ISF Plan: [Effect Name]
+
+## Overview
+[One paragraph describing what this shader does in a projection mapping context]
+
+## Effect Category
+- [ ] Generator (creates visuals from nothing)
+- [ ] Color Effect (modifies colors)
+- [ ] Distortion (warps geometry)
+- [ ] Blur (blur effects)
+- [ ] Stylize (artistic effects)
+- [ ] Transition (mixing between sources)
+- [ ] Audio-Reactive
+
+## Requirements Summary
+
+### Visual Description
+[Detailed description - what does it look like? How does it respond to parameters and audio?]
+
+### Image Inputs
+| Input Name | Purpose |
+|------------|---------|
+| `inputImage` | [primary source] |
+| [other] | [purpose] |
+
+### Audio Integration
+- [ ] Uses `audioFFT` input
+- [ ] No audio input
+
+If using audio:
+| Frequency Range | Visual Response |
+|-----------------|-----------------|
+| Bass (0.0-0.1) | [what happens] |
+| Mid (0.1-0.5) | [what happens] |
+| Treble (0.5-1.0) | [what happens] |
+
+### Controls (ISF INPUTS)
+
+| Name | Type | Default | Min | Max | Label | Purpose |
+|------|------|---------|-----|-----|-------|---------|
+| [name] | float/bool/color/point2D/long | [default] | [min] | [max] | [label] | [what it does] |
+
+### Multipass Requirements
+- [ ] Single pass sufficient
+- [ ] Multipass needed (detail below)
+
+### Feedback/Persistence
+- [ ] No feedback needed
+- [ ] Persistent buffer required (detail below)
+
+## Technical Approach
+
+### Algorithm
+[Step-by-step description of how the effect works]
+
+1. [First operation]
+2. [Second operation]
+3. [How results combine]
+
+### Key Techniques
+- [Technique 1]: [purpose and approach]
+- [Technique 2]: [purpose and approach]
+
+### Multipass Strategy (if applicable)
+
+| Pass | Target | Resolution | Purpose |
+|------|--------|------------|---------|
+| 0 | `bufferA` | full / `$WIDTH/4` | [what happens] |
+| 1 | `bufferB` | full | [what happens] |
+| 2 | (final) | full | [composite/output] |
+
+### Feedback Strategy (if applicable)
+- Buffer name: `feedbackBuffer`
+- Decay method: [multiplication / subtraction / other]
+- Decay rate: [value]
+- Motion: [zoom / translation / none]
+
+## ISF JSON Header
+
+```json
+{
+    "DESCRIPTION": "[description]",
+    "CREDIT": "[author]",
     "ISFVSN": "2.0",
-    "CATEGORIES": ["Generator", "Color Effect"],
+    "CATEGORIES": ["[category]"],
     "INPUTS": [
-        // Input definitions
-    ]
-}*/
-
-void main() {
-    vec4 color = vec4(1.0, 0.0, 0.0, 1.0);
-    gl_FragColor = color;
-}
-```
-
-## Input Types
-
-### Float (Slider)
-
-```json
-{
-    "NAME": "intensity",
-    "TYPE": "float",
-    "DEFAULT": 1.0,
-    "MIN": 0.0,
-    "MAX": 2.0,
-    "LABEL": "Intensity"
-}
-```
-
-### Boolean (Toggle)
-
-```json
-{
-    "NAME": "invert",
-    "TYPE": "bool",
-    "DEFAULT": false,
-    "LABEL": "Invert Colors"
-}
-```
-
-### Color Picker
-
-```json
-{
-    "NAME": "tintColor",
-    "TYPE": "color",
-    "DEFAULT": [1.0, 0.5, 0.0, 1.0],
-    "LABEL": "Tint Color"
-}
-```
-
-### Point 2D (XY Pad)
-
-```json
-{
-    "NAME": "center",
-    "TYPE": "point2D",
-    "DEFAULT": [0.5, 0.5],
-    "MIN": [0.0, 0.0],
-    "MAX": [1.0, 1.0],
-    "LABEL": "Center Point"
-}
-```
-
-### Long (Menu/Dropdown)
-
-```json
-{
-    "NAME": "mode",
-    "TYPE": "long",
-    "DEFAULT": 0,
-    "VALUES": [0, 1, 2],
-    "LABELS": ["Normal", "Additive", "Multiply"],
-    "LABEL": "Blend Mode"
-}
-```
-
-### Image Input
-
-```json
-{
-    "NAME": "inputImage",
-    "TYPE": "image",
-    "LABEL": "Input"
-}
-```
-
-### Audio FFT Input
-
-```json
-{
-    "NAME": "audioFFT",
-    "TYPE": "audioFFT",
-    "LABEL": "Audio Spectrum"
-}
-```
-
-## Auto-Declared Variables
-
-| Variable | Type | Description |
-|----------|------|-------------|
-| `RENDERSIZE` | `vec2` | Output dimensions in pixels |
-| `TIME` | `float` | Seconds since shader started |
-| `TIMEDELTA` | `float` | Seconds since last frame |
-| `FRAMEINDEX` | `int` | Frame counter |
-| `DATE` | `vec4` | (year, month, day, secondsInDay) |
-| `isf_FragNormCoord` | `vec2` | Normalized coords [0,0] to [1,1] |
-| `gl_FragCoord` | `vec4` | Pixel coordinates |
-
-## Image Sampling Functions
-
-**Always use ISF functions instead of `texture2D`:**
-
-```glsl
-// Sample at normalized coordinates (0-1)
-vec4 color = IMG_NORM_PIXEL(inputImage, isf_FragNormCoord);
-
-// Sample at pixel coordinates
-vec4 color = IMG_PIXEL(inputImage, gl_FragCoord.xy);
-
-// Sample current fragment (shorthand)
-vec4 color = IMG_THIS_PIXEL(inputImage);
-
-// Get image dimensions
-vec2 size = IMG_SIZE(inputImage);
-```
-
-## Audio Input
-
-MadMapper provides audio analysis through special input types:
-
-```json
-{
-    "NAME": "audioFFT",
-    "TYPE": "audioFFT"
-}
-```
-
-```glsl
-void main() {
-    vec2 uv = isf_FragNormCoord;
-
-    // Sample FFT - x position determines frequency (0=bass, 1=treble)
-    float bass = IMG_NORM_PIXEL(audioFFT, vec2(0.05, 0.0)).r;
-    float mid = IMG_NORM_PIXEL(audioFFT, vec2(0.3, 0.0)).r;
-    float treble = IMG_NORM_PIXEL(audioFFT, vec2(0.7, 0.0)).r;
-
-    // Use audio values
-    vec3 color = vec3(bass, mid, treble);
-    gl_FragColor = vec4(color, 1.0);
-}
-```
-
-## Multipass Rendering
-
-MadMapper ISF supports multipass rendering via the `PASSES` array:
-
-```json
-{
+        // Full input definitions
+    ],
     "PASSES": [
-        {
-            "TARGET": "blurPass1",
-            "WIDTH": "floor($WIDTH/4.0)",
-            "HEIGHT": "floor($HEIGHT/4.0)"
-        },
-        {
-            "TARGET": "blurPass2"
-        },
-        {}
+        // If multipass/feedback
     ]
 }
 ```
 
-Use `PASSINDEX` to determine which pass is executing:
+## Shader Structure
+
+### Main Flow (Pseudocode)
+```
+main():
+    if PASSINDEX == 0:
+        [first pass operations]
+    else if PASSINDEX == 1:
+        [second pass operations]
+    else:
+        [final pass / composite]
+```
+
+Or for single-pass:
+```
+main():
+    1. Get UV: isf_FragNormCoord
+    2. [Sample inputs]
+    3. [Process]
+    4. Set gl_FragColor with alpha = 1.0
+```
+
+### Helper Functions Needed
+| Function | Purpose | Signature |
+|----------|---------|-----------|
+| [name] | [what it does] | [return and params] |
+
+## Audio Sampling Strategy (if applicable)
 
 ```glsl
-void main() {
-    if (PASSINDEX == 0) {
-        // First pass - downsample
-        gl_FragColor = IMG_THIS_PIXEL(inputImage);
-    } else if (PASSINDEX == 1) {
-        // Second pass - blur
-        gl_FragColor = blur(blurPass1, isf_FragNormCoord);
-    } else {
-        // Final pass - composite
-        vec4 original = IMG_THIS_PIXEL(inputImage);
-        vec4 blurred = IMG_NORM_PIXEL(blurPass2, isf_FragNormCoord);
-        gl_FragColor = mix(original, blurred, blurAmount);
-    }
-}
+// Pseudocode for audio usage
+float bass = IMG_NORM_PIXEL(audioFFT, vec2(0.05, 0.0)).r;
+float mid = IMG_NORM_PIXEL(audioFFT, vec2(0.3, 0.0)).r;
+float treble = IMG_NORM_PIXEL(audioFFT, vec2(0.7, 0.0)).r;
+
+// Apply sensitivity control
+bass *= sensitivity;
+// [how bass affects visuals]
 ```
 
-## Persistent Buffers (Feedback)
+## Edge Cases & Fallbacks
 
-For feedback effects, use persistent buffers:
+| Condition | Handling |
+|-----------|----------|
+| No inputImage connected | [behavior] |
+| No audio signal | [behavior - should still look good] |
+| Control at minimum | [behavior] |
+| Control at maximum | [behavior] |
+| First frame (feedback empty) | [behavior] |
 
-```json
-{
-    "PASSES": [
-        {
-            "TARGET": "feedbackBuffer",
-            "PERSISTENT": true
-        },
-        {}
-    ]
-}
-```
+## Performance Notes
+- [Computational considerations for projection mapping]
+- [Multipass resolution strategy for performance]
+- [Any resolution limits]
 
-```glsl
-void main() {
-    vec2 uv = isf_FragNormCoord;
+## Implementation Checklist
 
-    if (PASSINDEX == 0) {
-        // Read previous frame, apply decay and motion
-        vec2 feedbackUV = (uv - 0.5) * 0.99 + 0.5;  // Slight zoom
-        vec4 feedback = IMG_NORM_PIXEL(feedbackBuffer, feedbackUV);
-        feedback *= 0.95;  // Decay
+### ISF File Structure
+- [ ] JSON header with all INPUTS defined
+- [ ] CATEGORIES appropriate for MadMapper
+- [ ] CREDIT and DESCRIPTION filled
+- [ ] PASSES array configured (if multipass)
+- [ ] PERSISTENT flags set (if feedback)
 
-        // Add new content
-        vec4 newContent = IMG_THIS_PIXEL(inputImage);
-        gl_FragColor = max(feedback, newContent);
-    } else {
-        // Final output
-        gl_FragColor = IMG_NORM_PIXEL(feedbackBuffer, uv);
-    }
-}
-```
+### GLSL Code
+- [ ] Use `IMG_THIS_PIXEL()` or `IMG_NORM_PIXEL()` for sampling
+- [ ] Use `isf_FragNormCoord` for UV
+- [ ] Set `gl_FragColor.a = 1.0` explicitly
+- [ ] No `texture2D()` - use ISF functions only
+- [ ] PASSINDEX logic correct (if multipass)
+- [ ] Feedback decay prevents infinite accumulation
 
-## Common Patterns
+### Audio Integration (if applicable)
+- [ ] `audioFFT` input declared
+- [ ] Sensitivity control provided
+- [ ] Effect works without audio (fallback behavior)
+- [ ] Temporal smoothing if needed (raw FFT is noisy)
 
-### Generator (No Image Input)
+### Testing
+- [ ] Test at MadMapper's various resolutions
+- [ ] Test with and without audio
+- [ ] Test all controls at extremes
+- [ ] Verify feedback doesn't blow out over time
 
-```glsl
-/*{
-    "ISFVSN": "2.0",
-    "CATEGORIES": ["Generator"],
-    "INPUTS": [
-        {"NAME": "speed", "TYPE": "float", "DEFAULT": 1.0, "MIN": 0.0, "MAX": 5.0}
-    ]
-}*/
+## Reference Code Snippets
 
-void main() {
-    vec2 uv = isf_FragNormCoord;
-    float pattern = sin(uv.x * 20.0 + TIME * speed) * sin(uv.y * 20.0 + TIME * speed);
-    gl_FragColor = vec4(vec3(pattern * 0.5 + 0.5), 1.0);
-}
-```
+### Multipass Patterns
+[Pre-selected patterns for this effect's multipass needs]
 
-### Filter (Processes Image)
+### Feedback Patterns
+[Relevant persistent buffer code examples]
 
-```glsl
-/*{
-    "ISFVSN": "2.0",
-    "CATEGORIES": ["Color Effect"],
-    "INPUTS": [
-        {"NAME": "inputImage", "TYPE": "image"},
-        {"NAME": "brightness", "TYPE": "float", "DEFAULT": 1.0, "MIN": 0.0, "MAX": 2.0}
-    ]
-}*/
-
-void main() {
-    vec4 color = IMG_THIS_PIXEL(inputImage);
-    color.rgb *= brightness;
-    gl_FragColor = color;
-}
-```
-
-### Audio-Reactive Generator
-
-```glsl
-/*{
-    "ISFVSN": "2.0",
-    "CATEGORIES": ["Generator"],
-    "INPUTS": [
-        {"NAME": "audioFFT", "TYPE": "audioFFT"},
-        {"NAME": "sensitivity", "TYPE": "float", "DEFAULT": 1.0, "MIN": 0.0, "MAX": 3.0}
-    ]
-}*/
-
-void main() {
-    vec2 uv = isf_FragNormCoord;
-
-    // Get audio level at this x position
-    float audio = IMG_NORM_PIXEL(audioFFT, vec2(uv.x, 0.0)).r * sensitivity;
-
-    // Draw bars
-    float bar = step(uv.y, audio);
-
-    // Color by frequency
-    vec3 color = vec3(uv.x, 0.5, 1.0 - uv.x) * bar;
-
-    gl_FragColor = vec4(color, 1.0);
-}
-```
-
-## MilkDrop Conversion Notes
-
-When converting from MilkDrop:
-
-| MilkDrop | MadMapper ISF |
-|----------|---------------|
-| `time` | `TIME` |
-| `bass`, `mid`, `treb` | Sample `audioFFT` texture |
-| `uv` | `isf_FragNormCoord` |
-| `texsize` | `RENDERSIZE` |
-| `sampler_main` | `inputImage` (declare as input) |
-| `decay` | Use persistent buffer with multiplication |
-| Per-vertex motion | Per-pixel UV manipulation |
-| Q variables | Shader uniforms/inputs |
-
-### Key Differences from MilkDrop
-
-1. **No implicit feedback**: Must use `PERSISTENT` buffers explicitly
-2. **No mesh/vertex system**: All motion is per-pixel UV manipulation
-3. **Audio via texture**: No pre-analyzed bass/mid/treb - sample FFT yourself
-4. **ISF image functions**: Use `IMG_NORM_PIXEL` etc., not `texture2D`
-
-### Key Differences from Resolume Wire
-
-MadMapper ISF **does** support:
-- Multipass rendering (`PASSES` array)
-- Persistent buffers (`PERSISTENT: true`)
-- `PASSINDEX` variable
-
-This makes it more capable than Wire for complex effects.
-
-## Categories
-
-Common MadMapper categories:
-- `Generator` - Creates visuals from nothing
-- `Color Effect` - Modifies colors
-- `Distortion` - Warps geometry
-- `Blur` - Blur effects
-- `Stylize` - Artistic effects
-- `Transition` - For mixing between sources
-
-## Best Practices
-
-1. **Set alpha explicitly**: Always set `gl_FragColor.a` to avoid transparency issues
-
-2. **Use normalized coordinates**: `isf_FragNormCoord` for resolution independence
-
-3. **Efficient blur**: Use multipass with downsampled targets for blur effects
-
-4. **Audio smoothing**: Raw FFT is noisy - apply temporal smoothing or use multiple samples
-
-5. **Test different resolutions**: MadMapper may run shaders at various sizes for mapping
-
-6. **Provide good defaults**: Users should see something interesting without adjusting parameters
+### Audio Sampling Patterns
+[FFT texture sampling examples]
 
 ---
 
-*Note: This skill covers general MadMapper ISF conventions. Some features may vary between MadMapper versions. Test shaders in the actual application.*
+**Ready for review.** Once approved, implementation can begin in a new session using this plan.
+```
+
+## Key Platform Features
+
+When planning for MadMapper, leverage these capabilities:
+
+1. **Multipass rendering**: Use `PASSES` array for blur, post-processing, multi-stage effects
+2. **Persistent buffers**: `PERSISTENT: true` enables frame-to-frame memory for trails/feedback
+3. **Audio FFT**: `audioFFT` input type for spectrum analysis
+4. **`PASSINDEX`**: Route logic based on current pass
+5. **Resolution expressions**: `$WIDTH/4` for downsampled intermediate buffers
+
+## Key Differences from Wire
+
+| Feature | MadMapper | Resolume Wire |
+|---------|-----------|---------------|
+| Multipass | Supported | Not supported |
+| Persistent buffers | Supported | Not supported |
+| PASSINDEX | Works | Always 0 |
+| Audio FFT | Built-in input type | External node only |
+
+## After User Approval
+
+Once the user approves the plan:
+1. The plan document serves as the complete specification
+2. A new session (or the user) can implement by following the plan exactly
+3. Reference materials provide ISF syntax details
+4. The implementation checklist ensures nothing is missed
